@@ -15,7 +15,7 @@ CHARACTER_COLLECTION = "characters"
 class CharacterOrchestratorState(TypedDict):
     """Represents the state of our dynamic workflow."""
     plan: List[Dict[str, str]]
-    original_request: Dict[str, Any]
+    details: Dict[str, Any]
     current_step: int
     results: List[Any]
     error: Optional[str]
@@ -52,7 +52,8 @@ def execute_step(state: CharacterOrchestratorState) -> CharacterOrchestratorStat
 
         # Call the tool, passing the original request directly.
         # All tools must now be designed to accept a single dictionary argument.
-        result = tool_function(state["original_request"], state["results"])
+        # TODO: Add option to select fields on a case by case basis.
+        result = tool_function(state["details"], state["results"])
         state["results"].append(result)
 
     except ModuleNotFoundError:
@@ -95,17 +96,17 @@ workflow.add_conditional_edges(
 character_orchestrator = workflow.compile()
 
 # --- Main Runner ---
-async def run_orchestrator(request: dict, details: dict, user_id: str, server_id: str) -> CharacterOrchestratorState:
+async def run_orchestrator(request) -> CharacterOrchestratorState:
     """
     Runs the orchestrator with a given request.
     """
-    plan = details.get("steps", [])
+    plan = request["step"]["steps"]
     if not plan:
         return {"error": "No plan found in the request."}
 
     initial_state = {
         "plan": plan,
-        "original_request": request,
+        "details": request["request"],
         "current_step": 0,
         "results": [],
         "error": None
